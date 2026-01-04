@@ -1,0 +1,8 @@
+{
+  "name": "Gemini Ultra Premium",
+  "description": "A high-performance, feature-rich Gemini client with multimodal support, image generation, search grounding, and a premium interface.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
