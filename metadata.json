@@ -1,6 +1,6 @@
 {
-  "name": "Gemini Ultra Premium",
-  "description": "A high-performance, feature-rich Gemini client with multimodal support, image generation, search grounding, and a premium interface.",
+  "name": "Arlo AI",
+  "description": "A high-performance, feature-rich AI client with multimodal support, ultra-fast image generation, and premium interface.",
   "requestFramePermissions": [
     "camera",
     "microphone"

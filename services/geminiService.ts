@@ -48,7 +48,7 @@ export const streamChat = async (
 ) => {
   const ai = getAI();
   const config: any = {
-    systemInstruction: options.systemInstruction || "You are Gemini, a helpful and premium AI assistant optimized for speed.",
+    systemInstruction: options.systemInstruction || "You are Arlo AI, a high-performance assistant. You are exceptionally fast, concise, and smart.",
     temperature: 1,
   };
 
@@ -72,7 +72,6 @@ export const streamChat = async (
     let groundingMetadata: any = null;
 
     for await (const chunk of responseStream) {
-      // Use .text property instead of text() method to extract generated content
       const text = chunk.text || "";
       fullText += text;
       onChunk(text);
@@ -90,37 +89,60 @@ export const streamChat = async (
       })).filter((u: any) => u.uri) || [] 
     };
   } catch (error) {
-    console.error("Gemini stream error:", error);
+    console.error("Arlo AI stream error:", error);
     throw error;
   }
 };
 
-export const generateImage = async (prompt: string) => {
-  const ai = getAI();
+export const generateImage = async (
+  prompt: string, 
+  config: { 
+    aspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9", 
+    isPro?: boolean 
+  } = {}
+) => {
+  // Always default to IMAGE (flash) for "Faster" generation unless pro is strictly required
+  const model = config.isPro ? GeminiModel.IMAGE_PRO : GeminiModel.IMAGE;
+  
+  if (config.isPro && (window as any).aistudio) {
+    if (!(await (window as any).aistudio.hasSelectedApiKey())) {
+      await (window as any).aistudio.openSelectKey();
+    }
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   try {
     const response = await ai.models.generateContent({
-      model: GeminiModel.IMAGE,
+      model: model,
       contents: { parts: [{ text: prompt }] },
       config: {
         imageConfig: {
-          aspectRatio: "1:1",
+          aspectRatio: config.aspectRatio || "1:1",
+          ...(config.isPro ? { imageSize: "1K" } : {})
         }
       }
     });
 
     if (!response.candidates?.[0]?.content?.parts) {
+      const candidate = response.candidates?.[0];
+      if (candidate?.finishReason === 'SAFETY') {
+        throw new Error("Content blocked by safety filters. Please refine your prompt.");
+      }
       throw new Error("No candidates returned from Image model");
     }
 
-    // Iterate through parts to find the image part
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    throw new Error("No image data found in response parts");
-  } catch (error) {
+    throw new Error("No image data found. Try simplifying the prompt.");
+  } catch (error: any) {
     console.error("Image generation error:", error);
+    if (error.message?.includes("Requested entity was not found.")) {
+      if ((window as any).aistudio) await (window as any).aistudio.openSelectKey();
+    }
     throw error;
   }
 };
@@ -150,9 +172,7 @@ export const textToSpeech = async (text: string): Promise<string> => {
     }
 };
 
-// Implement generateVideo as required by VideoCreatorView using Veo 3.1
 export const generateVideo = async (prompt: string, onStatus: (msg: string) => void): Promise<string> => {
-  // Create a new instance right before the call to ensure the latest API key is used
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     let operation = await ai.models.generateVideos({
@@ -166,26 +186,24 @@ export const generateVideo = async (prompt: string, onStatus: (msg: string) => v
     });
 
     const statusMessages = [
-      'Initiating high-speed generation...',
-      'Synthesizing cinematic frames...',
-      'Optimizing motion vectors...',
-      'Finalizing your masterpiece...',
-      'Almost there, hanging tight...'
+      'Initiating...',
+      'Synthesizing...',
+      'Optimizing...',
+      'Finalizing...',
+      'Wrapping up...'
     ];
 
     let i = 0;
     while (!operation.done) {
       onStatus(statusMessages[i % statusMessages.length]);
       i++;
-      // Poll every 10 seconds as recommended
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      await new Promise(resolve => setTimeout(resolve, 8000));
       operation = await ai.operations.getVideosOperation({ operation: operation });
     }
 
     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-    if (!downloadLink) throw new Error("Video generation failed - no URI found");
+    if (!downloadLink) throw new Error("Video generation failed");
 
-    // Fetch the video file using the download link and append the API key
     const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
     const blob = await response.blob();
     return URL.createObjectURL(blob);

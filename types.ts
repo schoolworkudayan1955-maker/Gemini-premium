@@ -1,6 +1,12 @@
 
 export type MessageRole = 'user' | 'model';
 
+export interface UserProfile {
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -38,5 +44,8 @@ export enum GeminiModel {
   PRO = 'gemini-3-pro-preview',
   LITE = 'gemini-flash-lite-latest',
   IMAGE = 'gemini-2.5-flash-image',
+  IMAGE_PRO = 'gemini-3-pro-image-preview',
   TTS = 'gemini-2.5-flash-preview-tts'
 }
+
+export type ViewMode = 'chat' | 'analytics' | 'learning' | 'image-creator' | 'humaniser' | 'ai-detector' | 'comics-maker' | 'code-maker';

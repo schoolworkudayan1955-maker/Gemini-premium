@@ -7,59 +7,100 @@ import LearningPathView from './components/LearningPathView';
 import ImageCreatorView from './components/ImageCreatorView';
 import HumaniserView from './components/HumaniserView';
 import AIDetectorView from './components/AIDetectorView';
-import { ChatMessage, ChatSession, GeminiModel, UserAnalytics, LearningPath } from './types';
+import ComicsMakerView from './components/ComicsMakerView';
+import HTMLCodeMakerView from './components/HTMLCodeMakerView';
+import SignInModal from './components/SignInModal';
+import { ChatMessage, ChatSession, GeminiModel, UserAnalytics, LearningPath, UserProfile, ViewMode } from './types';
 import { streamChat, generateImage } from './services/geminiService';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const STORAGE_KEY = 'gemini_advanced_v3_ultra_final_no_video';
+const STORAGE_KEY = 'arlo_ai_premium_v2';
+
+const LoadingScreen: React.FC = () => (
+  <div className="fixed inset-0 z-[100] bg-[#131314] flex flex-col items-center justify-center animate-in fade-in duration-500">
+    <div className="relative mb-8">
+      <div className="w-24 h-24 rounded-full arlo-star-gradient animate-pulse blur-xl opacity-20 absolute inset-0 scale-150"></div>
+      <div className="w-24 h-24 rounded-full arlo-star-gradient flex items-center justify-center shadow-[0_0_50px_rgba(66,133,244,0.3)] relative z-10">
+        <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" />
+        </svg>
+      </div>
+    </div>
+    <h1 className="text-4xl font-medium tracking-tight mb-4">
+      <span className="arlo-gradient-text font-sans">Arlo AI</span>
+    </h1>
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-48 h-1 bg-[#1e1f20] rounded-full overflow-hidden border border-[#3c4043]">
+        <div className="h-full bg-[#8ab4f8] animate-[loading_1.5s_ease-in-out_infinite] w-1/3 rounded-full shadow-[0_0_10px_#8ab4f8]"></div>
+      </div>
+      <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mt-2 font-bold animate-pulse">
+        Powering Up
+      </p>
+    </div>
+    <style>{`
+      @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(300%); }
+      }
+    `}</style>
+  </div>
+);
 
 const App: React.FC = () => {
+  const [isAppLoading, setIsAppLoading] = useState(true);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>(GeminiModel.LITE); 
-  const [viewMode, setViewMode] = useState<'chat' | 'analytics' | 'learning' | 'image-creator' | 'humaniser' | 'ai-detector'>('chat');
+  const [viewMode, setViewMode] = useState<ViewMode>('chat');
   const [learningPath, setLearningPath] = useState<LearningPath | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [showSignIn, setShowSignIn] = useState(false);
 
-  // Mock Analytics data generator
   const getAnalytics = (): UserAnalytics => ({
     totalMessages: sessions.reduce((acc, s) => acc + s.messages.length, 0),
     topics: [
       { name: 'Creative Generation', count: 68 },
-      { name: 'Technical Reasoning', count: 42 },
-      { name: 'Media Synthesis', count: 25 }
+      { name: 'Web Engineering', count: 55 },
+      { name: 'Logic Reasoning', count: 42 }
     ],
     performanceScore: 99,
     recentActivity: [12, 18, 15, 24, 32, 28, 45]
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSessions(parsed);
-        if (parsed.length > 0) setCurrentSessionId(parsed[0].id);
-      } catch (e) { console.error(e); }
-    }
-    const loginState = localStorage.getItem('isLoggedIn');
-    if (loginState === 'true') setIsLoggedIn(true);
+    const initApp = async () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setSessions(parsed);
+          if (parsed.length > 0) setCurrentSessionId(parsed[0].id);
+        } catch (e) { console.error(e); }
+      }
+      const savedUser = localStorage.getItem('arlo_user');
+      if (savedUser) {
+        try { setUser(JSON.parse(savedUser)); } catch (e) { console.error(e); }
+      }
+      setTimeout(() => setIsAppLoading(false), 1200);
+    };
+    initApp();
   }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }, [sessions]);
 
-  const handleSignIn = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true');
+  const handleSignIn = (profile: UserProfile) => {
+    setUser(profile);
+    localStorage.setItem('arlo_user', JSON.stringify(profile));
+    setShowSignIn(false);
   };
 
   const handleSignOut = () => {
-    if (window.confirm("Are you sure you want to remove your account? This will also clear your history for privacy.")) {
-      setIsLoggedIn(false);
-      localStorage.removeItem('isLoggedIn');
+    if (window.confirm("Sign out and clear local history?")) {
+      setUser(null);
+      localStorage.removeItem('arlo_user');
       handleClearHistory();
     }
   };
@@ -73,7 +114,7 @@ const App: React.FC = () => {
   const createNewChat = () => {
     const newSession: ChatSession = {
       id: Date.now().toString(),
-      title: 'New Chat',
+      title: 'New Discussion',
       messages: [],
       lastUpdated: Date.now(),
       model: selectedModel
@@ -81,48 +122,6 @@ const App: React.FC = () => {
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setViewMode('chat');
-  };
-
-  const handleCreateLearningPath = async (objective: string) => {
-    setIsLoading(true);
-    setViewMode('learning');
-    
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-    try {
-      const response = await ai.models.generateContent({
-        model: GeminiModel.PRO,
-        contents: `Create a ultra-fast, comprehensive 4-week learning roadmap for: "${objective}". Return as JSON.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              objective: { type: Type.STRING },
-              modules: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    duration: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    resources: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ["title", "duration", "description", "resources"]
-                }
-              }
-            },
-            required: ["objective", "modules"]
-          }
-        }
-      });
-      const data = JSON.parse(response.text || '{}');
-      setLearningPath({ ...data, status: 'active' });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSendMessage = async (text: string) => {
@@ -154,7 +153,6 @@ const App: React.FC = () => {
     ));
 
     setIsLoading(true);
-
     const isImageRequest = /\b(generate|create|draw|make|show)\b.*\b(image|picture|photo|illustration)\b/i.test(text);
 
     try {
@@ -163,7 +161,7 @@ const App: React.FC = () => {
         const modelMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: 'model',
-          content: "Here is the image you requested:",
+          content: "I've generated this for you:",
           timestamp: Date.now(),
           type: 'image',
           attachments: [imageUrl]
@@ -198,10 +196,7 @@ const App: React.FC = () => {
               } : s
             ));
           },
-          { 
-            useSearch: true, 
-            thinkingBudget: selectedModel === GeminiModel.PRO ? 2048 : 0 
-          }
+          { useSearch: true }
         );
 
         setSessions(prev => prev.map(s => 
@@ -217,16 +212,6 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      const errMsg: ChatMessage = {
-        id: (Date.now() + 5).toString(),
-        role: 'model',
-        content: "I encountered an error. This might be due to safety filters, quota limits, or project billing requirements. Please try a different prompt or check your settings.",
-        timestamp: Date.now(),
-        type: 'text'
-      };
-      setSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, messages: [...s.messages, errMsg] } : s
-      ));
     } finally {
       setIsLoading(false);
     }
@@ -234,6 +219,9 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full bg-[#131314] text-[#e3e3e3] overflow-hidden selection:bg-blue-500/30">
+      {isAppLoading && <LoadingScreen />}
+      {showSignIn && <SignInModal onSignIn={handleSignIn} onClose={() => setShowSignIn(false)} />}
+      
       <Sidebar 
         sessions={sessions}
         currentSessionId={currentSessionId}
@@ -246,8 +234,10 @@ const App: React.FC = () => {
         onShowImageCreator={() => setViewMode('image-creator')}
         onShowHumaniser={() => setViewMode('humaniser')}
         onShowAIDetector={() => setViewMode('ai-detector')}
-        isLoggedIn={isLoggedIn}
-        onSignIn={handleSignIn}
+        onShowComicsMaker={() => setViewMode('comics-maker')}
+        onShowCodeMaker={() => setViewMode('code-maker')}
+        isLoggedIn={!!user}
+        onSignIn={() => setShowSignIn(true)}
         onSignOut={handleSignOut}
       />
       
@@ -259,20 +249,15 @@ const App: React.FC = () => {
             onSendMessage={handleSendMessage}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
+            user={user}
+            onSignInClick={() => setShowSignIn(true)}
           />
         )}
         {viewMode === 'analytics' && (
-          <InsightsDashboard 
-            analytics={getAnalytics()} 
-            onClose={() => setViewMode('chat')}
-          />
+          <InsightsDashboard analytics={getAnalytics()} onClose={() => setViewMode('chat')} />
         )}
         {viewMode === 'learning' && (
-          <LearningPathView 
-            path={learningPath} 
-            onCreate={handleCreateLearningPath}
-            isLoading={isLoading}
-          />
+          <LearningPathView path={learningPath} onCreate={(obj) => {}} isLoading={isLoading} />
         )}
         {viewMode === 'image-creator' && (
           <ImageCreatorView onClose={() => setViewMode('chat')} />
@@ -282,6 +267,12 @@ const App: React.FC = () => {
         )}
         {viewMode === 'ai-detector' && (
           <AIDetectorView onClose={() => setViewMode('chat')} />
+        )}
+        {viewMode === 'comics-maker' && (
+          <ComicsMakerView onClose={() => setViewMode('chat')} />
+        )}
+        {viewMode === 'code-maker' && (
+          <HTMLCodeMakerView onClose={() => setViewMode('chat')} />
         )}
       </main>
     </div>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Advanced</title>
+    <title>Arlo AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,9 @@
             --bg-sidebar: #1e1f20;
             --bg-hover: #2e2f31;
             --text-main: #e3e3e3;
+            --text-sub: #b4b4b4;
             --accent-blue: #8ab4f8;
+            --border-subtle: rgba(255, 255, 255, 0.1);
         }
         body {
             font-family: 'Inter', 'Google Sans', sans-serif;
@@ -23,6 +25,7 @@
             color: var(--text-main);
             margin: 0;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
@@ -31,22 +34,52 @@
             background: #3c4043;
             border-radius: 10px;
         }
-        .gemini-gradient {
-            background: linear-gradient(74deg, #4285f4 0%, #9b72cb 9%, #d96570 20%, #d96570 24%, #9b72cb 35%, #4285f4 44%, #9b72cb 50%, #d96570 56%, #131314 75%, #131314 100%);
-            background-size: 400% 100%;
-            animation: gradient-flow 8s linear infinite;
+        .arlo-gradient-text {
+            background: linear-gradient(74deg, #4285f4 0%, #9b72cb 20%, #d96570 40%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 500;
         }
-        @keyframes gradient-flow {
-            0% { background-position: 100% 0%; }
-            100% { background-position: 0% 0%; }
+        .arlo-star-gradient {
+            background: linear-gradient(135deg, #4285f4 0%, #9b72cb 50%, #d96570 100%);
         }
-        .input-pill {
+        .input-pill-container {
             background-color: #1e1f20;
             border-radius: 32px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            border: 1px solid transparent;
         }
-        .input-pill:focus-within {
+        .input-pill-container:focus-within {
             background-color: #28292a;
+            border-color: #3c4043;
+        }
+        .suggestion-card {
+            background-color: #1e1f20;
+            border-radius: 16px;
+            padding: 20px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .suggestion-card:hover {
+            background-color: #2e2f31;
+        }
+        .nav-item-active {
+            background-color: #004a77;
+            color: #c2e7ff;
+        }
+        @keyframes pulse-gradient {
+            0% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.6; transform: scale(1); }
+        }
+        .thinking-pulse {
+            animation: pulse-gradient 2s infinite ease-in-out;
         }
     </style>
 <script type="importmap">
